@@ -207,9 +207,21 @@ function disconnect(connectionId) {
   connections.delete(connectionId);
 }
 
+// Le Voice Gateway possède le micro et le haut-parleur physiques de la
+// machine (cf. VOICEGTWSPEC.md §6.1, "propriété unique de l'audio") : une
+// seule instance peut tourner à la fois, quelle que soit la connexion ACP.
+// Sans ça, une connexion abandonnée (ex. refresh du navigateur sans
+// déconnexion propre) laisse un process vocal orphelin qui continue
+// d'écouter le raccourci PTT global et de parler en parallèle du nouveau.
+let activeVoiceConnectionId = null;
+
 function startVoice(connectionId, sessionId, apiBase) {
   const connection = getConnection(connectionId);
   if (!sessionId) throw new Error("Missing sessionId");
+
+  if (activeVoiceConnectionId && activeVoiceConnectionId !== connectionId) {
+    stopVoice(activeVoiceConnectionId);
+  }
   if (connection.voiceProcess) throw new Error("Voice mode already running for this connection");
   if (!fs.existsSync(VOICE_GATEWAY_PYTHON)) {
     throw new Error(
@@ -226,6 +238,7 @@ function startVoice(connectionId, sessionId, apiBase) {
 
   connection.voiceProcess = child;
   connection.voiceState = "starting";
+  activeVoiceConnectionId = connectionId;
   connection.broadcast("voice_status", { state: "starting" });
 
   child.stdout.on("data", (chunk) => connection.debugFrame("in", "(voice stdout)", chunk.toString(), "debug", "voice"));
@@ -238,11 +251,13 @@ function startVoice(connectionId, sessionId, apiBase) {
   child.on("exit", (code, signal) => {
     connection.voiceProcess = null;
     connection.voiceState = "stopped";
+    if (activeVoiceConnectionId === connectionId) activeVoiceConnectionId = null;
     connection.broadcast("voice_status", { state: "stopped", code, signal });
   });
   child.on("error", (err) => {
     connection.voiceProcess = null;
     connection.voiceState = "error";
+    if (activeVoiceConnectionId === connectionId) activeVoiceConnectionId = null;
     connection.broadcast("voice_status", { state: "error", message: err.message });
   });
 
@@ -250,8 +265,8 @@ function startVoice(connectionId, sessionId, apiBase) {
 }
 
 function stopVoice(connectionId) {
-  const connection = getConnection(connectionId);
-  if (!connection.voiceProcess) return { state: "stopped" };
+  const connection = connections.get(connectionId);
+  if (!connection || !connection.voiceProcess) return { state: "stopped" };
   connection.voiceProcess.kill("SIGTERM");
   return { state: "stopping" };
 }

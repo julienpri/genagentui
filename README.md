@@ -32,14 +32,36 @@ Configured in [agents.json](./agents.json). Out of the box:
 Add any other ACP-compliant agent by appending `{ id, label, command, args }` to
 `agents.json` — no code changes required.
 
+## Voice mode
+
+The "🎤 Mode vocal" button in the chat UI switches the current session into a
+conversational voice loop: hold space to talk, the transcript appears as a user
+message, the agent's reply is spoken back through the local speakers. This is
+powered by [`voice-gateway/`](./voice-gateway/) (local STT/TTS, see its own
+README for setup and models) — the Node server spawns it on demand and bridges
+it over the *existing* REST+SSE API (`/api/prompt`, `/api/events`), no new
+transport or dependency.
+
+The Voice Gateway owns the machine's physical microphone/speakers, so only one
+instance runs at a time regardless of how many browser tabs or ACP connections
+exist — starting it from a new session kills any previous instance first.
+
+Override its location with env vars if needed:
+
+```bash
+VOICE_GATEWAY_DIR=/path/to/voice-gateway VOICE_GATEWAY_PYTHON=/path/to/.venv/bin/python node server/server.js
+```
+
 ## Architecture
 
 ```
 acp/              Generic ACP JSON-RPC client (protocol v1), spawns the agent
                    subprocess and speaks newline-delimited JSON-RPC over stdio.
 server/           Zero-dependency Node HTTP server: serves public/, exposes a
-                   small REST + SSE API, bridges it to the ACP client.
+                   small REST + SSE API, bridges it to the ACP client and
+                   (on request) to the Voice Gateway subprocess.
 public/           Vanilla HTML/CSS/JS frontend. No framework, no build step.
+voice-gateway/    Local voice pipeline (Python) — STT/TTS, PTT, optional.
 agent-client-protocol-std/   Trimmed local copy of the official ACP spec, for reference.
 ```
 

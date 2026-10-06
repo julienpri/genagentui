@@ -379,6 +379,9 @@ const VOICE_EVENT_LABELS = {
 };
 
 function renderVoiceEvent(event, data) {
+  if (event === "transcript" && data.text) {
+    appendUserMessage(data.text);
+  }
   const el = document.getElementById("voice-status");
   if (!el) return;
   const fmt = VOICE_EVENT_LABELS[event];
@@ -1047,6 +1050,13 @@ function initUI() {
     } catch (err) {
       toast(err.message, "error");
     }
+  });
+
+  window.addEventListener("pagehide", () => {
+    if (!state.connectionId) return;
+    if (state.voiceState !== "running" && state.voiceState !== "starting") return;
+    const blob = new Blob([JSON.stringify({ connectionId: state.connectionId })], { type: "application/json" });
+    navigator.sendBeacon("/api/voice/stop", blob);
   });
 
   loadAgentList().catch((err) => toast(err.message, "error"));

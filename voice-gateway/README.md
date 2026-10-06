@@ -8,8 +8,10 @@ indépendante de Kilo/ACP/UI web pour l'instant.
 🎙 Micro → PTT → Whisper local → Fake Agent (stream) → Speakable + Segmenter → Piper → 🔊
 ```
 
-Statut : étapes 1 à 4 validées (voir §19 de la spec). Pas encore implémenté : VAD,
-barge-in, AEC, intégration ACP/Kilo, UI web (étapes 5+).
+Statut : étapes 1 à 4 validées (voir §19 de la spec), **plus une intégration v0 à
+l'UI web** du projet parent (`../public/`, `../server/`) — bouton "Mode vocal"
+dans le chat, voir [`controller/`](#intégration-web-v0) ci-dessous. Pas encore
+implémenté : VAD, barge-in, AEC (étapes 5+).
 
 ## Installation
 
@@ -90,6 +92,34 @@ Les chemins de modèles sont référencés dans `config/config.yaml` (`stt.model
 .venv/bin/python scripts/soak_voice.py
 ```
 
+## Intégration web (v0)
+
+Branche la Gateway sur l'UI de chat du projet parent plutôt qu'un Fake Agent.
+N'est pas lancé à la main : le serveur Node (`../server/acp-bridge.js`) spawn
+`controller/web_session.py` quand on clique "🎤 Mode vocal" dans le navigateur,
+avec `--connection-id`/`--session-id` de la session ACP en cours.
+
+```
+controller/web_session.py       PTT -> STT -> POST /api/prompt -> écoute SSE
+                                 (agent_message_chunk/status) -> Segmenter ->
+                                 Speakable -> Piper -> haut-parleur
+controller/acp_http_client.py   client HTTP+SSE du serveur Node existant
+                                 (pas de nouvelle dépendance ACP : le serveur
+                                 Node gère déjà le spawn de l'agent et les
+                                 sessions, cf. ../server/acp-bridge.js)
+```
+
+Le serveur Node n'autorise qu'une seule instance de Voice Gateway à la fois
+(propriété unique du micro/haut-parleur physiques, §6.1) : démarrer une
+nouvelle session vocale tue automatiquement la précédente.
+
+Un seul tour actif à la fois (§9) : un nouveau PTT pendant qu'un tour est en
+cours est ignoré — pas de barge-in dans cette v0.
+
+Testé bout-en-bout avec un agent ACP réel (opencode) : prompt -> réponse
+réelle streamée -> synthèse -> lecture, sans crash, arrêt propre. Le round-trip
+micro réel (PTT + voix humaine côté navigateur) a été validé manuellement.
+
 ## Architecture
 
 ```
@@ -99,12 +129,16 @@ voice_gateway/
 ├── audio/resampler.py              # vers format interne 16kHz mono int16 (§6.2)
 ├── audio/player.py                 # file de lecture (§6.9)
 ├── stt/faster_whisper.py, filter.py # STT + filtre anti-hallucination (§6.5, §6.6)
-├── text/segmenter.py, speakable.py # Text Pipeline (§6.7)
+├── text/segmenter.py, speakable.py, pipeline.py  # Text Pipeline (§6.7) + speak_sentence partagé
 └── tts/piper.py                    # synthèse streaming (§6.8)
 
-controller/fake_agent.py            # Fake Agent de test (§4.1), à remplacer par ACP plus tard
+controller/
+├── fake_agent.py                   # Fake Agent de test (§4.1), utilisé par main_voice.py
+├── acp_http_client.py              # client HTTP+SSE du serveur Node (intégration web)
+└── web_session.py                  # orchestrateur mode web (PTT -> STT -> ACP -> TTS)
+
 main.py                             # étape 1
-main_voice.py                       # étapes 3/4 (tour complet)
+main_voice.py                       # étapes 3/4 (tour complet, Fake Agent)
 scripts/                            # harnesses de test (corpus, replay, soak)
 ```
 
