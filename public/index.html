@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ACP Web Client</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<header id="connection-bar">
+  <div class="connection-form" id="connection-form">
+    <select id="agent-select" aria-label="Agent ACP"></select>
+    <input id="cwd-input" type="text" placeholder="Répertoire de travail (cwd)" value="." />
+    <button id="connect-btn" type="button">Connecter</button>
+  </div>
+
+  <div class="connection-status" id="connection-status" hidden>
+    <span class="agent-name" id="agent-name">—</span>
+    <span class="agent-version" id="agent-version"></span>
+    <span class="protocol-version" id="protocol-version"></span>
+    <span class="session-id" id="session-id-label"></span>
+    <span class="usage-indicator" id="usage-indicator" hidden></span>
+    <button id="disconnect-btn" type="button" class="ghost">Déconnecter</button>
+  </div>
+
+  <div class="header-actions">
+    <button id="debug-toggle-btn" type="button" class="ghost">Debug</button>
+  </div>
+</header>
+
+<main id="app" hidden>
+
+  <aside id="session-panel" class="panel">
+    <h2>Sessions</h2>
+    <div class="session-actions">
+      <button id="new-session-btn" type="button">New session</button>
+      <select id="resume-session-select"><option value="">Resume session…</option></select>
+      <button id="resume-session-btn" type="button" disabled>Resume</button>
+      <button id="close-session-btn" type="button" disabled>Close session</button>
+    </div>
+    <ul id="session-list"></ul>
+
+    <h2>Capabilities</h2>
+    <ul id="capabilities-list" class="capabilities-list"></ul>
+
+    <h2 id="commands-heading" hidden>Commands</h2>
+    <ul id="commands-list" class="commands-list" hidden></ul>
+
+    <h2 id="config-heading" hidden>Configuration</h2>
+    <div id="config-panel" class="config-panel" hidden></div>
+
+    <h2 id="plan-heading" hidden>Plan</h2>
+    <ol id="plan-list" class="plan-list" hidden></ol>
+  </aside>
+
+  <section id="chat-panel" class="panel">
+    <div id="conversation" aria-live="polite"></div>
+
+    <form id="composer" autocomplete="off">
+      <div id="command-palette" class="command-palette" hidden></div>
+      <textarea id="prompt-input" placeholder="Message… (/ pour les commandes)" rows="2" disabled></textarea>
+      <div class="composer-actions">
+        <button id="stop-btn" type="button" class="danger" disabled>Stop</button>
+        <button id="send-btn" type="submit" disabled>Send</button>
+      </div>
+    </form>
+  </section>
+
+  <aside id="tool-calls-panel" class="panel">
+    <h2>Tool calls</h2>
+    <ul id="tool-calls-list"></ul>
+  </aside>
+
+</main>
+
+<div id="permission-modal" class="modal" hidden>
+  <div class="modal-box">
+    <h3 id="permission-title">Permission required</h3>
+    <div id="permission-body"></div>
+    <div id="permission-options" class="permission-options"></div>
+  </div>
+</div>
+
+<div id="debug-panel" class="debug-panel" hidden>
+  <div class="debug-panel-header">
+    <h3>Debug</h3>
+    <div>
+      <button id="copy-logs-btn" type="button" class="ghost">Copy logs</button>
+      <button id="clear-logs-btn" type="button" class="ghost">Clear</button>
+      <button id="close-debug-btn" type="button" class="ghost">×</button>
+    </div>
+  </div>
+  <div id="debug-log" class="debug-log"></div>
+</div>
+
+<div id="toast-container" aria-live="polite"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

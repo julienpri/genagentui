@@ -1,0 +1,15 @@
+{
+  "name": "acp-web-client",
+  "version": "0.1.0",
+  "description": "Generic ACP (Agent Client Protocol) web client and bridge",
+  "private": true,
+  "type": "commonjs",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {}
+}
