@@ -176,6 +176,8 @@ Modes de barge-in (`barge_in.mode`) :
 
 En mode push-to-talk, le VAD est contourné : le segment est délimité par `ptt-down` / `ptt-up`, pre-roll inclus.
 
+**VAD sans AEC (étape 5)** : tant que `barge_in.mode == off` (défaut jusqu'à l'étape 6), un `speech-start` du VAD pendant `SPEAKING` n'a aucune transition définie dans la state machine (§8.1) — il est donc ignoré, le micro restant non traité jusqu'à la fin de la lecture. Activer le VAD pour se passer du push-to-talk ne nécessite donc **pas** l'AEC : l'AEC n'entre en jeu qu'à partir du barge-in actif sans casque (`barge_in.mode: aec`, étape 6b). Le seul risque à l'étape 5 est le réglage des seuils VAD contre les faux positifs (bruit ambiant, voix tierces), pas l'écho.
+
 ### 6.5 STT
 
 - Transcription **par segment** en v1 (pas de partiels).
