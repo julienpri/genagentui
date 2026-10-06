@@ -1,0 +1,46 @@
+session:
+  id_prefix: vg
+
+audio:
+  input_device: default
+  output_device: default
+  frame_ms: 20
+  output_buffer_ms: 200
+
+ptt:
+  mode: toggle            # toggle (Entrée/Entrée, zéro permission) | hold (espace maintenue, requiert pynput + permission Accessibilité macOS)
+  key: space
+
+stt:
+  provider: faster-whisper
+  model: models/faster-whisper-small     # chemin local, relatif à voice-gateway/
+  device: cpu
+  compute_type: int8
+  language: fr
+  beam_size: 1
+  condition_on_previous_text: false
+  filter:
+    max_no_speech_prob: 0.6
+    min_avg_logprob: -1.0
+    max_compression_ratio: 2.4
+    min_chars: 2
+    blacklist_file: config/stt-blacklist-fr.txt
+
+text:
+  speakable:
+    code_blocks: summarize   # summarize | drop
+    max_path_chars: 30
+  segmenter:
+    max_sentence_chars: 220
+
+tts:
+  provider: piper
+  model: models/piper/fr/fr_FR/siwis/medium/fr_FR-siwis-medium.onnx
+  speed: 1.0
+
+fake_agent:
+  word_delay_ms: 40
+
+observability:
+  log_file: logs/voice-gateway.jsonl
+  level: info

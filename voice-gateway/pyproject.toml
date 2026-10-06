@@ -1,0 +1,21 @@
+[project]
+name = "voice-gateway"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "sounddevice>=0.4.6",
+    "numpy>=1.26",
+    "pynput>=1.7",
+    "pyyaml>=6.0",
+    "faster-whisper>=1.0",
+    "soxr>=0.4",
+    "piper-tts>=1.8",
+    "psutil>=5.9",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["voice_gateway*"]
