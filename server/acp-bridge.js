@@ -3,12 +3,17 @@
 const fs = require("fs");
 const path = require("path");
 const { randomUUID } = require("crypto");
+const { spawn } = require("child_process");
 
 const { ACPClient } = require("../acp/client");
 const { ACP_EVENTS } = require("../acp/events");
 const protocol = require("../acp/protocol");
 
 const agentsConfig = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "agents.json"), "utf8"));
+
+const VOICE_GATEWAY_DIR = process.env.VOICE_GATEWAY_DIR || path.join(__dirname, "..", "voice-gateway");
+const VOICE_GATEWAY_PYTHON =
+  process.env.VOICE_GATEWAY_PYTHON || path.join(VOICE_GATEWAY_DIR, ".venv", "bin", "python");
 
 const KNOWN_SESSION_UPDATE_KINDS = new Set(Object.values(protocol.SESSION_UPDATE_KINDS));
 
@@ -24,6 +29,8 @@ class Connection {
     this.activePromptSessionIds = new Set();
     this.pendingPermissions = new Map();
     this.sseClients = new Set();
+    this.voiceProcess = null;
+    this.voiceState = "stopped";
   }
 
   broadcast(event, data) {
@@ -194,9 +201,64 @@ function getConnection(connectionId) {
 function disconnect(connectionId) {
   const connection = connections.get(connectionId);
   if (!connection) return;
+  if (connection.voiceProcess) connection.voiceProcess.kill("SIGTERM");
   connection.acpClient.kill();
   for (const res of connection.sseClients) res.end();
   connections.delete(connectionId);
+}
+
+function startVoice(connectionId, sessionId, apiBase) {
+  const connection = getConnection(connectionId);
+  if (!sessionId) throw new Error("Missing sessionId");
+  if (connection.voiceProcess) throw new Error("Voice mode already running for this connection");
+  if (!fs.existsSync(VOICE_GATEWAY_PYTHON)) {
+    throw new Error(
+      `Voice Gateway Python introuvable: ${VOICE_GATEWAY_PYTHON} (voir voice-gateway/README.md pour l'installation)`
+    );
+  }
+
+  const scriptPath = path.join(VOICE_GATEWAY_DIR, "controller", "web_session.py");
+  const child = spawn(
+    VOICE_GATEWAY_PYTHON,
+    [scriptPath, "--api-base", apiBase, "--connection-id", connectionId, "--session-id", sessionId],
+    { cwd: VOICE_GATEWAY_DIR, stdio: ["ignore", "pipe", "pipe"] }
+  );
+
+  connection.voiceProcess = child;
+  connection.voiceState = "starting";
+  connection.broadcast("voice_status", { state: "starting" });
+
+  child.stdout.on("data", (chunk) => connection.debugFrame("in", "(voice stdout)", chunk.toString(), "debug", "voice"));
+  child.stderr.on("data", (chunk) => connection.debugFrame("in", "(voice stderr)", chunk.toString(), "warn", "voice"));
+
+  child.on("spawn", () => {
+    connection.voiceState = "running";
+    connection.broadcast("voice_status", { state: "running" });
+  });
+  child.on("exit", (code, signal) => {
+    connection.voiceProcess = null;
+    connection.voiceState = "stopped";
+    connection.broadcast("voice_status", { state: "stopped", code, signal });
+  });
+  child.on("error", (err) => {
+    connection.voiceProcess = null;
+    connection.voiceState = "error";
+    connection.broadcast("voice_status", { state: "error", message: err.message });
+  });
+
+  return { state: "starting" };
+}
+
+function stopVoice(connectionId) {
+  const connection = getConnection(connectionId);
+  if (!connection.voiceProcess) return { state: "stopped" };
+  connection.voiceProcess.kill("SIGTERM");
+  return { state: "stopping" };
+}
+
+function relayVoiceEvent(connectionId, event, data) {
+  const connection = getConnection(connectionId);
+  connection.broadcast("voice_event", { event, data });
 }
 
 function addSSEClient(connectionId, res) {
@@ -353,4 +415,7 @@ module.exports = {
   cancel,
   respondToPermission,
   setConfigOption,
+  startVoice,
+  stopVoice,
+  relayVoiceEvent,
 };

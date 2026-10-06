@@ -105,6 +105,7 @@ const state = {
   promptState: "idle",
   permissionQueue: [],
   currentPermission: null,
+  voiceState: "stopped",
 };
 
 /* ---------------------------------------------------------------------- */
@@ -174,6 +175,9 @@ const agent = {
 
   async closeSession() {
     if (!state.sessionId) return;
+    if (state.voiceState === "running" || state.voiceState === "starting") {
+      try { await agent.stopVoice(); } catch {}
+    }
     await fetchJSON("/api/session/close", {
       method: "POST",
       body: JSON.stringify({ connectionId: state.connectionId, sessionId: state.sessionId }),
@@ -216,6 +220,21 @@ const agent = {
     return fetchJSON("/api/config/set", {
       method: "POST",
       body: JSON.stringify({ connectionId: state.connectionId, sessionId: state.sessionId, id, value, type }),
+    });
+  },
+
+  async startVoice() {
+    if (!state.sessionId) return;
+    await fetchJSON("/api/voice/start", {
+      method: "POST",
+      body: JSON.stringify({ connectionId: state.connectionId, sessionId: state.sessionId }),
+    });
+  },
+
+  async stopVoice() {
+    await fetchJSON("/api/voice/stop", {
+      method: "POST",
+      body: JSON.stringify({ connectionId: state.connectionId }),
     });
   },
 
@@ -334,9 +353,66 @@ function connectEvents(connectionId) {
     toast(data.message, "error");
   });
 
+  es.addEventListener("voice_status", (ev) => {
+    const data = JSON.parse(ev.data);
+    log.debug("voice", `voice_status: ${data.state}`, { __direction: "in", ...data });
+    state.voiceState = data.state;
+    renderVoiceStatus(data);
+  });
+
+  es.addEventListener("voice_event", (ev) => {
+    const data = JSON.parse(ev.data);
+    log.debug("voice", `voice_event: ${data.event}`, { __direction: "in", ...data });
+    renderVoiceEvent(data.event, data.data || {});
+  });
+
   es.onerror = () => {
     log.warn("transport", "SSE connection error", {});
   };
+}
+
+const VOICE_EVENT_LABELS = {
+  transcript: (d) => `🗣️ « ${d.text} »`,
+  "transcript-rejected": (d) => `🗣️ (ignoré : ${d.reason})`,
+  "synthesis-start": () => `🔊 réponse en cours…`,
+  error: (d) => `⚠️ ${d.message || d.code || "erreur voix"}`,
+};
+
+function renderVoiceEvent(event, data) {
+  const el = document.getElementById("voice-status");
+  if (!el) return;
+  const fmt = VOICE_EVENT_LABELS[event];
+  if (!fmt) return;
+  el.hidden = false;
+  el.textContent = fmt(data);
+}
+
+function renderVoiceStatus(data) {
+  const btn = document.getElementById("voice-toggle-btn");
+  const el = document.getElementById("voice-status");
+  if (!btn) return;
+  if (data.state === "running") {
+    btn.textContent = "🎤 Mode vocal (actif)";
+    btn.classList.add("active");
+    if (el) {
+      el.hidden = false;
+      el.textContent = "🎤 en écoute (maintenir espace pour parler)";
+    }
+  } else if (data.state === "starting") {
+    btn.textContent = "🎤 Démarrage…";
+    btn.disabled = true;
+  } else if (data.state === "error") {
+    btn.textContent = "🎤 Mode vocal";
+    btn.classList.remove("active");
+    btn.disabled = !state.sessionId;
+    toast(data.message || "Erreur du Voice Gateway", "error");
+    if (el) el.hidden = true;
+  } else {
+    btn.textContent = "🎤 Mode vocal";
+    btn.classList.remove("active");
+    btn.disabled = !state.sessionId;
+    if (el) el.hidden = true;
+  }
 }
 
 function handleACPUpdate(update) {
@@ -782,6 +858,7 @@ function setPromptState(nextState, stopReason) {
 function setComposerEnabled(enabled) {
   document.getElementById("prompt-input").disabled = !enabled;
   document.getElementById("send-btn").disabled = !enabled;
+  document.getElementById("voice-toggle-btn").disabled = !enabled;
   setPromptState("idle");
 }
 
@@ -959,6 +1036,18 @@ function initUI() {
   });
 
   document.getElementById("stop-btn").addEventListener("click", () => agent.cancel());
+
+  document.getElementById("voice-toggle-btn").addEventListener("click", async () => {
+    try {
+      if (state.voiceState === "running" || state.voiceState === "starting") {
+        await agent.stopVoice();
+      } else {
+        await agent.startVoice();
+      }
+    } catch (err) {
+      toast(err.message, "error");
+    }
+  });
 
   loadAgentList().catch((err) => toast(err.message, "error"));
 }

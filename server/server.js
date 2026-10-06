@@ -137,6 +137,16 @@ const ROUTES = {
 
   "POST /api/config/set": async (body) =>
     bridge.setConfigOption(body.connectionId, body.sessionId, body.id, body.value, body.type),
+
+  "POST /api/voice/start": async (body) =>
+    bridge.startVoice(body.connectionId, body.sessionId, `http://127.0.0.1:${PORT}`),
+
+  "POST /api/voice/stop": async (body) => bridge.stopVoice(body.connectionId),
+
+  "POST /api/voice/event": async (body) => {
+    bridge.relayVoiceEvent(body.connectionId, body.event, body.data);
+    return {};
+  },
 };
 
 async function handleRequest(req, res) {

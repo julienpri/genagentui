@@ -41,6 +41,8 @@ button.ghost {
   border: 1px solid var(--border);
 }
 button.danger { background: var(--danger); }
+#voice-toggle-btn.active { background: #22c55e; }
+.voice-status { font-size: 13px; color: var(--text-dim); margin-right: auto; align-self: center; }
 
 input, select, textarea {
   font: inherit;

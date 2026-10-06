@@ -11,6 +11,7 @@ dependencies = [
     "soxr>=0.4",
     "piper-tts>=1.8",
     "psutil>=5.9",
+    "requests>=2.31",
 ]
 
 [build-system]

@@ -24,10 +24,11 @@ import yaml
 from controller.fake_agent import FakeAgent
 from voice_gateway.audio.audio_io import AudioIO
 from voice_gateway.audio.player import Player
-from voice_gateway.audio.resampler import internal_format, resample_pcm, resample_to
+from voice_gateway.audio.resampler import internal_format, resample_pcm
 from voice_gateway.core.cancel import CancelToken
 from voice_gateway.stt.faster_whisper import WhisperSTT
 from voice_gateway.stt.filter import TranscriptFilter
+from voice_gateway.text.pipeline import speak_sentence
 from voice_gateway.text.segmenter import SentenceSegmenter
 from voice_gateway.text.speakable import SpeakableFilter
 from voice_gateway.tts.piper import PiperTTS
@@ -86,37 +87,16 @@ async def process_turn(
     t_agent_start = time.monotonic()
     t_first_agent_chunk: float | None = None
     t_first_sentence: float | None = None
-    t_first_tts_chunk: float | None = None
-    t_playback_start: float | None = None
+    timers: dict = {}
 
     async def handle_sentence(raw_sentence: str) -> None:
-        nonlocal t_first_tts_chunk, t_playback_start
-        text = speakable.process(raw_sentence)
-        if not text:
-            return
         t_sentence_ready = time.monotonic()
-        logger.log("synthesis-start", take=take, text=text)
-        first_chunk = True
-        async for chunk in tts.synthesize(text, CancelToken()):
-            if first_chunk:
-                t_first_tts_chunk = t_first_tts_chunk or time.monotonic()
-                first_chunk = False
-            out_pcm = resample_to(chunk.pcm, chunk.fmt, out_fmt.sample_rate)
-            player.enqueue(out_pcm)
-            if t_playback_start is None:
-                # Laisse la main à la boucle asyncio jusqu'à ce que le
-                # callback audio ait réellement consommé ce chunk (sinon la
-                # course est perdue quand une phrase ne tient qu'en un seul
-                # chunk : on vérifierait player.started avant qu'il bascule).
-                for _ in range(200):  # ~1s max
-                    if player.started:
-                        t_playback_start = time.monotonic()
-                        break
-                    await asyncio.sleep(0.005)
+        logger.log("synthesis-start", take=take, text=raw_sentence)
+        await speak_sentence(raw_sentence, speakable, tts, player, out_fmt.sample_rate, timers)
         logger.log(
             "synthesis-end",
             take=take,
-            text=text,
+            text=raw_sentence,
             latency_ms=int((time.monotonic() - t_sentence_ready) * 1000),
         )
 
@@ -138,8 +118,8 @@ async def process_turn(
         await asyncio.sleep(0.02)
     t_playback_end = time.monotonic()
 
-    if t_playback_start is None:
-        t_playback_start = t_playback_end  # rien synthétisé (texte vide après filtrage)
+    t_playback_start = timers.get("playback_start_t", t_playback_end)
+    t_first_tts_chunk = timers.get("first_tts_chunk_t")
 
     metrics = {
         "stt_latency_ms": transcript.stt_latency_ms,
