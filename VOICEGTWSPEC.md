@@ -424,6 +424,15 @@ Préfixe unique `voice.`. Enveloppe commune :
 
 Le Gateway n'importe pas ACP. Seul le Conversation Controller le fait.
 
+> **Écart assumé côté intégration web** (`voice-gateway/controller/web_session.py`) :
+> quand un serveur ACP existe déjà (cas de ce repo, `server/acp-bridge.js`), le
+> Controller ne spawn **pas** l'agent lui-même — il parle HTTP+SSE à ce serveur,
+> qui gère déjà sessions/spawn/stdio. §12.1 ci-dessous décrit l'intégration
+> « pure » (Controller propriétaire du subprocess ACP), pertinente en mode
+> autonome (CLI, sans serveur existant). Détail de l'écart et pourquoi :
+> [`docs/architecture.html`](../docs/architecture.html) et
+> [`voice-gateway/README.md`](../voice-gateway/README.md#intégration-web-v0).
+
 ### 12.1 Transport
 
 - ACP fonctionne en **JSON-RPC sur stdio** : le Controller lance l'agent en **subprocess** (commande configurable) et dialogue via stdin/stdout.

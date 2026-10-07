@@ -181,6 +181,72 @@
   }
   .box-hardware { text-align: center; }
 
+  /* ---- Component detail cards ---- */
+  .component-group { display: flex; flex-direction: column; gap: 1.4rem; margin-top: 1.2rem; }
+  .component-card {
+    border: 1px solid var(--line); border-radius: 4px; background: var(--panel);
+    box-shadow: var(--shadow); padding: 1.2rem 1.4rem;
+  }
+  .component-card header {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 1rem; flex-wrap: wrap; border: none; padding: 0; margin: 0 0 0.3rem;
+  }
+  .component-card h3 { margin: 0; font-size: 1.05rem; font-family: Charter, Georgia, serif; }
+  .component-card .path {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.74rem; color: var(--net); white-space: nowrap;
+  }
+  .component-card .role { font-size: 0.88rem; color: var(--ink-dim); margin: 0 0 0.9rem; max-width: 62ch; }
+  .file-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.45rem; }
+  .file-list li { font-size: 0.86rem; display: grid; grid-template-columns: 200px 1fr; gap: 0.8rem; align-items: baseline; }
+  .file-list code {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.78rem; color: var(--ink); white-space: nowrap;
+  }
+  @media (max-width: 640px) {
+    .file-list li { grid-template-columns: 1fr; gap: 0.15rem; }
+  }
+  .depends { margin-top: 0.9rem; padding-top: 0.7rem; border-top: 1px dashed var(--line); font-size: 0.78rem; color: var(--ink-dim); }
+  .depends b { color: var(--ink); font-weight: 600; }
+
+  /* ---- Detailed pipeline diagram ---- */
+  .pipeline-wrap { display: flex; justify-content: center; margin-top: 1.4rem; }
+  .pipeline { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 620px; }
+  .pipe-node {
+    width: 100%; border: 1px solid var(--line); border-radius: 4px; background: var(--panel);
+    box-shadow: var(--shadow); padding: 0.65rem 1rem; text-align: center; font-size: 0.86rem;
+  }
+  .pipe-node .pipe-sub {
+    display: block; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.68rem; color: var(--ink-dim); margin-top: 0.2rem;
+  }
+  .pipe-node.audio-edge { border-color: var(--audio); }
+  .pipe-node.net-edge { border-color: var(--net); }
+  .pipe-node.ghost {
+    border-style: dashed; background: transparent; box-shadow: none; color: var(--ink-dim);
+  }
+  .pipe-arrow { width: 2px; height: 26px; background: var(--line); position: relative; }
+  .pipe-arrow::after {
+    content: ""; position: absolute; bottom: -1px; left: 50%; transform: translateX(-50%);
+    border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid var(--line);
+  }
+  .pipe-arrow.audio { background: var(--audio); }
+  .pipe-arrow.audio::after { border-top-color: var(--audio); }
+  .pipe-arrow.net { background: var(--net); }
+  .pipe-arrow.net::after { border-top-color: var(--net); }
+  .pipe-arrow.net.dashed { background: repeating-linear-gradient(to bottom, var(--net) 0 4px, transparent 4px 8px); }
+  .pipe-label {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.68rem; color: var(--ink-dim); margin: 0.15rem 0; text-align: center;
+  }
+  .pipe-side-note {
+    font-size: 0.72rem; color: var(--ink-dim); font-style: italic; text-align: center;
+    max-width: 44ch; margin: 0.3rem 0 0;
+  }
+  .pipe-branch { display: flex; gap: 1.6rem; width: 100%; justify-content: center; align-items: flex-start; }
+  .pipe-branch .pipeline { flex: 1; max-width: 280px; }
+  .pipe-branch-head { font-family: ui-monospace, monospace; font-size: 0.7rem; color: var(--ink-dim); text-align: center; margin-bottom: 0.2rem; }
+
   /* ---- Sequence diagram ---- */
   .sequence-scroll { overflow-x: auto; margin: 0 -1.5rem; padding: 0 1.5rem; }
   .sequence {
@@ -284,6 +350,7 @@
     <div class="legend">
       <span class="swatch"><span class="dash net"></span> HTTP / SSE (JSON)</span>
       <span class="swatch"><span class="dash audio"></span> audio local (aucun réseau)</span>
+      <span class="swatch"><span class="dash alt"></span> alternative selon la voix choisie</span>
     </div>
     <div class="diagram-scroll">
       <div class="arch">
@@ -343,11 +410,151 @@
   </section>
 
   <section>
-    <h2><span class="num">03</span> Un tour de parole, en détail</h2>
+    <h2><span class="num">03</span> Détail par composant</h2>
+    <p>Les cinq dossiers du repo qui participent à une conversation vocale, dans l'ordre où
+      ils entrent en jeu. Chacun n'a qu'un seul rôle ; aucun n'importe la couche du dessus.</p>
+
+    <div class="component-group">
+
+      <div class="component-card">
+        <header><h3>🖥️ public/</h3><span class="path">frontend</span></header>
+        <p class="role">Vanilla HTML/CSS/JS, aucun framework, aucun build. Affiche l'état,
+          envoie les prompts, ne capture ni ne joue jamais d'audio lui-même — sauf
+          <code class="inline">speechSynthesis</code> quand la voix « navigateur » est choisie.</p>
+        <ul class="file-list">
+          <li><code>index.html</code><span>panneaux (sessions, config, commandes, plan), composer, modale de permission, panneau debug</span></li>
+          <li><code>app.js</code><span><code class="inline">state</code> global + objet <code class="inline">agent</code> (initialize/prompt/cancel/startVoice…) + dispatcher SSE (<code class="inline">connectEvents()</code>)</span></li>
+          <li><code>style.css</code><span>thème, pas de dépendance externe</span></li>
+        </ul>
+        <p class="depends">Parle à : <b>server/</b> (fetch REST + <code class="inline">EventSource</code>). Ne connaît ni l'agent ACP ni le Voice Gateway par leur nom.</p>
+      </div>
+
+      <div class="component-card">
+        <header><h3>🖧 server/</h3><span class="path">backend Node, zéro dépendance npm</span></header>
+        <p class="role">Le <em>Conversation Controller</em> au sens de la spec voix — il existait
+          avant l'intégration vocale et n'a pas changé de rôle, juste gagné deux routes.</p>
+        <ul class="file-list">
+          <li><code>server.js</code><span><code class="inline">http.createServer</code>, table <code class="inline">ROUTES</code>, endpoint SSE <code class="inline">/api/events</code> (ping toutes les 25s)</span></li>
+          <li><code>acp-bridge.js</code><span>classe <code class="inline">Connection</code> (1 par agent connecté) ; <code class="inline">startVoice/stopVoice</code> spawn/kill <code class="inline">web_session.py</code>, 1 seule instance globale (<code class="inline">activeVoiceConnectionId</code>)</span></li>
+        </ul>
+        <p class="depends">Parle à : <b>acp/</b> (spawn l'agent), <b>voice-gateway/controller/</b> (spawn, via les mêmes routes REST que le navigateur).</p>
+      </div>
+
+      <div class="component-card">
+        <header><h3>🔌 acp/</h3><span class="path">client JSON-RPC générique</span></header>
+        <p class="role">Parle le protocole ACP sur stdio. Ne sait rien de la voix, rien du web —
+          utilisé tel quel par <code class="inline">server/acp-bridge.js</code>.</p>
+        <ul class="file-list">
+          <li><code>client.js</code><span><code class="inline">ACPClient</code> — spawn l'agent, JSON-RPC newline-delimited, EventEmitter (frame/notification/agent_request/exit)</span></li>
+          <li><code>protocol.js</code><span>constantes de méthodes, <code class="inline">SESSION_UPDATE_KINDS</code>, builders de messages</span></li>
+        </ul>
+        <p class="depends">Utilisé par : <b>server/acp-bridge.js</b> uniquement.</p>
+      </div>
+
+      <div class="component-card">
+        <header><h3>🎙️ voice-gateway/voice_gateway/</h3><span class="path">package Python, importable seul</span></header>
+        <p class="role">Le cœur audio local. N'importe jamais <code class="inline">controller/</code> —
+          il ignore totalement l'existence d'ACP, du web, ou de Node (cf. spec §18).</p>
+        <ul class="file-list">
+          <li><code>core/types.py, cancel.py</code><span><code class="inline">AudioFormat</code>, <code class="inline">AudioChunk</code>, <code class="inline">Transcript</code>, <code class="inline">CancelToken</code></span></li>
+          <li><code>audio/audio_io.py</code><span><code class="inline">AudioIO</code> — flux <code class="inline">sounddevice.Stream</code> full-duplex unique, callback non-bloquant</span></li>
+          <li><code>audio/resampler.py</code><span><code class="inline">resample_to()</code> (soxr) — format interne 16kHz mono int16</span></li>
+          <li><code>audio/player.py</code><span><code class="inline">Player</code> — file de lecture, <code class="inline">pull()</code> non bloquant côté callback audio</span></li>
+          <li><code>stt/faster_whisper.py, filter.py</code><span><code class="inline">WhisperSTT</code> local + <code class="inline">TranscriptFilter</code> anti-hallucination</span></li>
+          <li><code>text/segmenter.py, speakable.py, pipeline.py</code><span>phrases complètes en streaming, markdown → texte prononçable, <code class="inline">speak_sentence()</code> partagé</span></li>
+          <li><code>tts/piper.py, say.py</code><span>deux implémentations interchangeables de <code class="inline">TTSProvider</code></span></li>
+        </ul>
+        <p class="depends">Parle à : le matériel audio local uniquement (<code class="inline">sounddevice</code>, modèles sur disque). Aucun réseau.</p>
+      </div>
+
+      <div class="component-card">
+        <header><h3>🧩 voice-gateway/controller/</h3><span class="path">orchestrateur — connaît ACP ET audio</span></header>
+        <p class="role">Le seul endroit qui connaît à la fois <code class="inline">voice_gateway/</code>
+          et le serveur Node. Deux entrées : le CLI de test (Fake Agent) et le mode web réel.</p>
+        <ul class="file-list">
+          <li><code>web_session.py</code><span>spawné par Node ; PTT (<code class="inline">pynput</code>) → <code class="inline">handle_voice_turn</code> → <code class="inline">on_sse_event</code> → <code class="inline">finish_turn</code>, classe <code class="inline">Turn</code> (un tour actif à la fois)</span></li>
+          <li><code>acp_http_client.py</code><span><code class="inline">ACPHttpClient</code> — POST <code class="inline">/api/prompt</code>, SSE <code class="inline">/api/events</code>, POST <code class="inline">/api/voice/event</code></span></li>
+          <li><code>fake_agent.py</code><span>agent de test pour <code class="inline">main_voice.py</code> en CLI — pas utilisé en mode web</span></li>
+        </ul>
+        <p class="depends">Parle à : <b>server/</b> (HTTP+SSE) et <b>voice_gateway/</b> (import direct, même process Python).</p>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">04</span> Pipeline détaillé du Voice Gateway</h2>
     <p>
-      Du <em>push-to-talk</em> à la réponse parlée. Les flèches pointillées marquent une
-      alternative selon la voix choisie dans l'UI (<code class="inline">piper</code> /
-      <code class="inline">say</code> / <code class="inline">browser</code>).
+      Ce que « 🎙️ Voice Gateway » cachait dans une seule boîte au schéma 02, déplié module par
+      module. La traversée agent (réseau, déjà couverte aux schémas 02 et 05) est réduite à une
+      seule étape en pointillé pour ne pas redessiner tout le système deux fois.
+    </p>
+    <div class="legend">
+      <span class="swatch"><span class="dash audio"></span> audio local</span>
+      <span class="swatch"><span class="dash net"></span> HTTP / SSE</span>
+      <span class="swatch"><span class="dash alt"></span> selon la voix choisie</span>
+    </div>
+    <div class="pipeline-wrap">
+      <div class="pipeline">
+
+        <div class="pipe-node audio-edge">🎙️ Micro</div>
+        <div class="pipe-arrow audio"></div>
+        <div class="pipe-label">sounddevice.Stream — flux full-duplex unique</div>
+
+        <div class="pipe-node audio-edge">AudioIO<span class="pipe-sub">begin_capture() / end_capture() — PTT espace (pynput)</span></div>
+        <div class="pipe-arrow audio"></div>
+
+        <div class="pipe-node audio-edge">resample_to()<span class="pipe-sub">soxr — 16kHz mono int16, format interne fixe</span></div>
+        <div class="pipe-arrow audio"></div>
+
+        <div class="pipe-node audio-edge">WhisperSTT.transcribe()<span class="pipe-sub">faster-whisper, modèle local, hors boucle asyncio</span></div>
+        <div class="pipe-arrow audio"></div>
+
+        <div class="pipe-node audio-edge">TranscriptFilter.check()<span class="pipe-sub">no_speech_prob · avg_logprob · compression_ratio · blacklist</span></div>
+        <p class="pipe-side-note">si rejeté (silence, bruit, toux) → retour direct à l'écoute, rien n'est envoyé plus loin</p>
+        <div class="pipe-arrow net"></div>
+        <div class="pipe-label">notify("transcript") · send_prompt()</div>
+
+        <div class="pipe-node ghost">⇄ Agent ACP, via le Serveur Node<span class="pipe-sub">POST /api/prompt → SSE agent_message_chunk × n — voir schémas 02 et 05</span></div>
+        <div class="pipe-arrow net"></div>
+        <div class="pipe-label">session_update (agent_message_chunk)</div>
+
+        <div class="pipe-node net-edge">SentenceSegmenter.push()<span class="pipe-sub">émet une phrase dès ponctuation forte ou longueur max</span></div>
+        <div class="pipe-arrow net"></div>
+
+        <div class="pipe-node net-edge">SpeakableFilter.process()<span class="pipe-sub">markdown, blocs de code, chemins/URLs → texte prononçable</span></div>
+        <div class="pipe-arrow net"></div>
+        <div class="pipe-label">selon le &lt;select&gt; de voix (figé pour la session)</div>
+
+        <div class="pipe-branch">
+          <div class="pipeline">
+            <div class="pipe-branch-head">piper · say</div>
+            <div class="pipe-node audio-edge">TTSProvider.synthesize()<span class="pipe-sub">PiperTTS ou SayTTS — même interface, process Python</span></div>
+            <div class="pipe-arrow audio"></div>
+            <div class="pipe-node audio-edge">Player.enqueue()<span class="pipe-sub">file de lecture, consommée par le callback audio</span></div>
+            <div class="pipe-arrow audio"></div>
+            <div class="pipe-node audio-edge">🔊 Haut-parleurs</div>
+          </div>
+          <div class="pipeline">
+            <div class="pipe-branch-head">browser</div>
+            <div class="pipe-node ghost">aucune synthèse locale<span class="pipe-sub">juste notify("synthesis-start", texte)</span></div>
+            <div class="pipe-arrow net dashed"></div>
+            <div class="pipe-node net-edge">speechSynthesis.speak()<span class="pipe-sub">côté navigateur, après relais SSE via Node</span></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">05</span> Un tour de parole, en détail</h2>
+    <p>
+      Du <em>push-to-talk</em> à la réponse parlée. <code class="inline">piper</code> et
+      <code class="inline">say</code> suivent exactement le même chemin (synthèse + lecture
+      locale dans le process Python) — seule la voix sonne différemment, le flux ne change pas.
+      Les flèches pointillées marquent le seul embranchement réel : <code class="inline">browser</code>,
+      qui ne synthétise rien côté Python et relaie le texte pour <code class="inline">speechSynthesis</code>.
     </p>
     <div class="sequence-scroll">
       <div class="sequence" id="sequence">
@@ -384,70 +591,74 @@
             </marker>
           </defs>
 
-          <!-- 1: PTT down -->
+          <!-- 1: Utilisateur -> Voice Gateway : PTT down -->
           <line x1="80" y1="98" x2="290" y2="98" stroke="var(--audio)" stroke-width="2" marker-end="url(#arrow-audio)" />
-          <!-- 2: PTT up -->
+          <!-- 2: Utilisateur -> Voice Gateway : PTT up -->
           <line x1="80" y1="150" x2="290" y2="150" stroke="var(--audio)" stroke-width="2" marker-end="url(#arrow-audio)" />
-          <!-- 3: Node→Node transcript post -->
+          <!-- 3: Voice Gateway -> Serveur Node : transcript -->
           <line x1="290" y1="238" x2="500" y2="238" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
-          <!-- 4: Node→Browser transcript relay -->
+          <!-- 4: Serveur Node -> Navigateur : relais transcript -->
           <line x1="500" y1="272" x2="920" y2="272" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
-          <!-- 5: VG→Node prompt -->
-          <line x1="290" y1="322" x2="500" y2="322" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
-          <!-- 6: Node→Agent prompt -->
-          <line x1="500" y1="358" x2="710" y2="358" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
-          <!-- 7: Agent→Node chunks -->
-          <line x1="710" y1="402" x2="500" y2="402" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
-          <!-- 8: Node→Browser live render -->
-          <line x1="500" y1="436" x2="920" y2="436" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
-          <!-- 9: Node→VG same stream -->
-          <line x1="500" y1="468" x2="290" y2="468" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
-          <!-- 10: Agent→Node result -->
-          <line x1="710" y1="512" x2="500" y2="512" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
-          <!-- 11: Node→VG status completed -->
-          <line x1="500" y1="546" x2="290" y2="546" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
-          <!-- 12: VG self synth+play (piper/say) -->
-          <path d="M 290,616 C 360,616 360,650 292,650" fill="none" stroke="var(--audio)" stroke-width="2" marker-end="url(#arrow-audio)" />
-          <!-- 12b alt: VG->Node->Browser speechSynthesis -->
-          <line x1="290" y1="672" x2="500" y2="672" stroke="var(--net)" stroke-width="2" stroke-dasharray="5,4" marker-end="url(#arrow-net)" />
-          <line x1="500" y1="696" x2="920" y2="696" stroke="var(--net)" stroke-width="2" stroke-dasharray="5,4" marker-end="url(#arrow-net)" />
-          <!-- 13: VG->Node playback-end -->
-          <line x1="290" y1="748" x2="500" y2="748" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
-          <!-- 14: Node->Browser status update -->
-          <line x1="500" y1="782" x2="920" y2="782" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
+          <!-- 5: Voice Gateway -> Serveur Node : prompt -->
+          <line x1="290" y1="316" x2="500" y2="316" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
+          <!-- 6: Serveur Node -> Agent ACP : session/prompt -->
+          <line x1="500" y1="350" x2="710" y2="350" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
+          <!-- 7: Agent ACP -> Serveur Node : chunks (répété n fois) -->
+          <line x1="710" y1="394" x2="500" y2="394" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
+          <!-- 8: Serveur Node -> Navigateur : rendu live -->
+          <line x1="500" y1="428" x2="920" y2="428" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
+          <!-- 9: Serveur Node -> Voice Gateway : même flux, 2e abonné SSE -->
+          <line x1="500" y1="462" x2="290" y2="462" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
+          <!-- 10: Voice Gateway self : TTS dès qu'une phrase est complète (AVANT la fin du flux agent) -->
+          <path d="M 290,510 C 362,510 362,550 292,550" fill="none" stroke="var(--audio)" stroke-width="2" marker-end="url(#arrow-audio)" />
+          <!-- 10b alt : voix = navigateur -->
+          <line x1="290" y1="586" x2="500" y2="586" stroke="var(--net)" stroke-width="2" stroke-dasharray="5,4" marker-end="url(#arrow-net)" />
+          <line x1="500" y1="610" x2="920" y2="610" stroke="var(--net)" stroke-width="2" stroke-dasharray="5,4" marker-end="url(#arrow-net)" />
+          <!-- 11: Agent ACP -> Serveur Node : fin de tour -->
+          <line x1="710" y1="654" x2="500" y2="654" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
+          <!-- 12: Serveur Node -> Voice Gateway : status completed -->
+          <line x1="500" y1="688" x2="290" y2="688" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
+          <!-- 13: Voice Gateway -> Serveur Node : playback-end -->
+          <line x1="290" y1="756" x2="500" y2="756" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
+          <!-- 14: Serveur Node -> Navigateur : statut mis à jour -->
+          <line x1="500" y1="790" x2="920" y2="790" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
         </svg>
 
         <!-- activations (self-processing on the Voice Gateway lifeline) -->
         <div class="activation" style="left:calc(29% - 4px); top:170px; height:50px;"></div>
-        <div class="activation" style="left:calc(29% - 4px); top:600px; height:60px;"></div>
+        <div class="activation" style="left:calc(29% - 4px); top:500px; height:60px;"></div>
+        <div class="activation" style="left:calc(29% - 4px); top:712px; height:34px;"></div>
 
         <div class="seq-label audio" style="left:18.5%; top:98px;">PTT down — espace maintenue</div>
         <div class="seq-label audio" style="left:18.5%; top:150px;">PTT up</div>
         <div class="seq-label" style="left:29%; top:196px; color:var(--audio); transform:translate(8px,-100%);">Whisper — STT local</div>
         <div class="seq-label net" style="left:39.5%; top:238px;">POST /api/voice/event (transcript)</div>
         <div class="seq-label net" style="left:71%; top:272px;">SSE voice_event → bulle utilisateur</div>
-        <div class="seq-label net" style="left:39.5%; top:322px;">POST /api/prompt { text }</div>
-        <div class="seq-label net" style="left:60.5%; top:358px;">session/prompt (JSON-RPC)</div>
-        <div class="seq-label net" style="left:60.5%; top:402px;">session/update × n (agent_message_chunk)</div>
-        <div class="seq-label net" style="left:71%; top:436px;">SSE session_update → texte affiché en direct</div>
-        <div class="seq-label net" style="left:39.5%; top:468px;">SSE session_update → Segmenter + Speakable</div>
-        <div class="seq-label net" style="left:60.5%; top:512px;">result { stopReason: end_turn }</div>
-        <div class="seq-label net" style="left:39.5%; top:546px;">SSE status: completed</div>
-        <div class="seq-label" style="left:34%; top:650px; color:var(--audio);">TTS Piper / say + lecture locale
-          <span class="alt-note">si voix = piper ou say</span>
+        <div class="seq-label net" style="left:39.5%; top:316px;">POST /api/prompt { text }</div>
+        <div class="seq-label net" style="left:60.5%; top:350px;">session/prompt (JSON-RPC)</div>
+        <div class="seq-label net" style="left:60.5%; top:394px;">session/update (agent_message_chunk)
+          <span class="alt-note">répété à chaque chunk</span>
         </div>
-        <div class="seq-label net" style="left:39.5%; top:672px;">texte relayé
+        <div class="seq-label net" style="left:71%; top:428px;">SSE session_update → texte affiché en direct</div>
+        <div class="seq-label net" style="left:39.5%; top:462px;">SSE session_update → Segmenter + Speakable</div>
+        <div class="seq-label" style="left:34%; top:552px; color:var(--audio);">TTS Piper / say + lecture locale
+          <span class="alt-note">dès qu'une phrase est complète — avant la fin du flux agent, pas après</span>
+        </div>
+        <div class="seq-label net" style="left:39.5%; top:586px;">texte relayé
           <span class="alt-note">si voix = navigateur</span>
         </div>
-        <div class="seq-label net" style="left:71%; top:696px;">speechSynthesis.speak()</div>
-        <div class="seq-label net" style="left:39.5%; top:748px;">POST /api/voice/event (playback-end)</div>
-        <div class="seq-label net" style="left:71%; top:782px;">SSE → statut mis à jour</div>
+        <div class="seq-label net" style="left:71%; top:610px;">speechSynthesis.speak()</div>
+        <div class="seq-label net" style="left:60.5%; top:654px;">result { stopReason: end_turn }</div>
+        <div class="seq-label net" style="left:39.5%; top:688px;">SSE status: completed</div>
+        <div class="seq-label" style="left:29%; top:724px; color:var(--audio); transform:translate(8px,-100%);">flush dernière phrase + attente fin de lecture</div>
+        <div class="seq-label net" style="left:39.5%; top:756px;">POST /api/voice/event (playback-end)</div>
+        <div class="seq-label net" style="left:71%; top:790px;">SSE → statut mis à jour</div>
       </div>
     </div>
   </section>
 
   <section>
-    <h2><span class="num">04</span> Ce qui est fait</h2>
+    <h2><span class="num">06</span> Ce qui est fait</h2>
     <div class="grid-2">
       <div>
         <h3 style="font-size:1rem;">Voice Gateway (local)</h3>
@@ -473,7 +684,7 @@
   </section>
 
   <section>
-    <h2><span class="num">05</span> Décisions qui comptent</h2>
+    <h2><span class="num">07</span> Décisions qui comptent</h2>
     <ul class="clean">
       <li><strong>Pas de second client ACP.</strong> Le Voice Gateway parle HTTP+SSE au serveur
         Node existant plutôt que de spawn son propre agent — zéro duplication de la logique de

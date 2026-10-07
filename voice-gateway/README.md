@@ -10,8 +10,8 @@ indépendante de Kilo/ACP/UI web pour l'instant.
 
 Statut : étapes 1 à 4 validées (voir §19 de la spec), **plus une intégration v0 à
 l'UI web** du projet parent (`../public/`, `../server/`) — bouton "Mode vocal"
-dans le chat, voir [`controller/`](#intégration-web-v0) ci-dessous. Pas encore
-implémenté : VAD, barge-in, AEC (étapes 5+).
+dans le chat, voir [Intégration web (v0)](#intégration-web-v0) ci-dessous. Pas
+encore implémenté : VAD, barge-in, AEC (étapes 5+).
 
 ## Installation
 
@@ -147,6 +147,8 @@ voice_gateway/
 ├── stt/faster_whisper.py, filter.py # STT + filtre anti-hallucination (§6.5, §6.6)
 ├── text/segmenter.py, speakable.py, pipeline.py  # Text Pipeline (§6.7) + speak_sentence partagé
 └── tts/piper.py, say.py            # synthèse streaming (§6.8) — Piper et macOS `say`
+                                     # ("browser" n'a pas de fichier ici : c'est une
+                                     # branche de web_session.py, pas un TTSProvider)
 
 controller/
 ├── fake_agent.py                   # Fake Agent de test (§4.1), utilisé par main_voice.py
