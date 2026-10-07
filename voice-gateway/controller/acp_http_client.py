@@ -11,7 +11,8 @@ fait que : POST /api/prompt (texte -> agent), GET /api/events en SSE
 from __future__ import annotations
 
 import json
-from typing import Callable, Iterator
+import sys
+from typing import Iterator
 
 import requests
 
@@ -39,13 +40,19 @@ class ACPHttpClient:
 
     def notify_event(self, event: str, data: dict) -> None:
         try:
-            requests.post(
+            r = requests.post(
                 f"{self.api_base}/api/voice/event",
                 json={"connectionId": self.connection_id, "event": event, "data": data},
                 timeout=5,
             )
-        except requests.RequestException:
-            pass  # best-effort : ne doit jamais interrompre la boucle vocale
+            if not r.ok:
+                # Échec silencieux sinon : un connectionId périmé (process
+                # orphelin, serveur Node relancé) fait disparaître les
+                # transcripts/statuts sans aucune trace, cf. incident du
+                # transcript qui n'apparaissait pas côté UI.
+                print(f"[voice] notify_event({event}) a échoué: HTTP {r.status_code} {r.text}", file=sys.stderr, flush=True)
+        except requests.RequestException as e:
+            print(f"[voice] notify_event({event}) a échoué: {e!r}", file=sys.stderr, flush=True)
 
     def iter_events(self) -> Iterator[tuple[str, dict]]:
         """Générateur bloquant sur le flux SSE /api/events. À lancer dans un thread dédié."""
