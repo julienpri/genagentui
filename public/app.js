@@ -397,6 +397,7 @@ function renderVoiceStatus(data) {
   if (data.state === "running") {
     btn.textContent = "🎤 Mode vocal (actif)";
     btn.classList.add("active");
+    btn.disabled = false;
     if (el) {
       el.hidden = false;
       el.textContent = "🎤 en écoute (maintenir espace pour parler)";
