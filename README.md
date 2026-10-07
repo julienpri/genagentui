@@ -7,7 +7,8 @@ that agent actually advertises — no agent-specific logic in the frontend.
 
 Full design spec: [SPEC.md](./SPEC.md). Protocol reference used to build this:
 [agent-client-protocol-std/](./agent-client-protocol-std/) (trimmed local copy of the
-official spec repo, see its own README for details).
+official spec repo, see its own README for details). Architecture overview with a
+sequence diagram of a voice turn: [docs/architecture.html](./docs/architecture.html).
 
 ## Quick start
 

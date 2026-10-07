@@ -1,0 +1,498 @@
+<title>Architecture — ACP Web Client + Voice Gateway</title>
+<meta name="description" content="Schéma d'architecture et diagramme de séquence du client web ACP et de son intégration vocale locale." />
+<style>
+  :root {
+    --paper: #f6f4ef;
+    --ink: #181a1f;
+    --ink-dim: #52555e;
+    --line: #d8d4c9;
+    --panel: #ffffff;
+    --audio: #b96f1f;
+    --audio-bg: #f3e6d4;
+    --net: #1f7f78;
+    --net-bg: #ddeeec;
+    --code-bg: #eeebe3;
+    --shadow: 0 1px 2px rgba(24, 26, 31, 0.06);
+  }
+  :root[data-theme="dark"] {
+    --paper: #0b0d12;
+    --ink: #e9e6df;
+    --ink-dim: #9a9ca6;
+    --line: #2a2d35;
+    --panel: #12141a;
+    --audio: #e0953f;
+    --audio-bg: #2c2214;
+    --net: #52c2ba;
+    --net-bg: #112423;
+    --code-bg: #171a21;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0b0d12;
+      --ink: #e9e6df;
+      --ink-dim: #9a9ca6;
+      --line: #2a2d35;
+      --panel: #12141a;
+      --audio: #e0953f;
+      --audio-bg: #2c2214;
+      --net: #52c2ba;
+      --net-bg: #112423;
+      --code-bg: #171a21;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 {
+    font-family: Charter, "Iowan Old Style", Georgia, "Times New Roman", serif;
+    text-wrap: balance;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  code, .mono {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  a { color: var(--net); }
+
+  .wrap { max-width: 880px; margin: 0 auto; padding: 4rem 1.5rem 6rem; }
+  .wide { max-width: 1080px; }
+
+  header.title-block {
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 1.5rem;
+    margin-bottom: 3rem;
+  }
+  .eyebrow {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin: 0 0 0.6rem;
+  }
+  h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); margin: 0 0 0.4rem; }
+  .subtitle { color: var(--ink-dim); font-size: 1.05rem; margin: 0; max-width: 60ch; }
+  .meta-row {
+    display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem;
+    margin-top: 1.2rem; font-size: 0.82rem; color: var(--ink-dim);
+  }
+  .meta-row span { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+
+  section { margin: 3.2rem 0; }
+  h2 {
+    font-size: 1.4rem;
+    margin: 0 0 1.1rem;
+    display: flex; align-items: baseline; gap: 0.6rem;
+  }
+  h2 .num { font-family: ui-monospace, monospace; font-size: 0.85rem; color: var(--net); font-weight: 400; }
+  p { max-width: 68ch; }
+  ul.clean { padding-left: 1.2rem; max-width: 68ch; }
+  ul.clean li { margin: 0.35rem 0; }
+
+  .legend {
+    display: flex; gap: 1.6rem; flex-wrap: wrap;
+    font-size: 0.82rem; color: var(--ink-dim); margin: 0.8rem 0 1.6rem;
+  }
+  .legend .swatch { display: inline-flex; align-items: center; gap: 0.45rem; }
+  .legend .dash { width: 22px; height: 0; border-top-width: 2.5px; border-top-style: solid; display: inline-block; }
+  .legend .dash.audio { border-color: var(--audio); }
+  .legend .dash.net { border-color: var(--net); }
+  .legend .dash.alt { border-color: var(--net); border-top-style: dashed; }
+
+  /* ---- Architecture diagram (pure CSS grid, no SVG) ---- */
+  .diagram-scroll { overflow-x: auto; margin: 0 -1.5rem; padding: 0 1.5rem; }
+  .arch {
+    display: grid;
+    grid-template-columns: 200px 70px 230px 70px 190px;
+    grid-template-rows: auto 56px auto 44px auto;
+    min-width: 820px;
+    align-items: center;
+    justify-items: stretch;
+  }
+  .box {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    box-shadow: var(--shadow);
+    padding: 0.9rem 1rem;
+  }
+  .box .box-title { font-weight: 600; font-size: 0.95rem; margin: 0 0 0.15rem; }
+  .box .box-sub { font-size: 0.76rem; color: var(--ink-dim); margin: 0; }
+  .box-browser   { grid-column: 1; grid-row: 1; }
+  .box-node      { grid-column: 3; grid-row: 1; }
+  .box-agent     { grid-column: 5; grid-row: 1; }
+  .box-gateway   { grid-column: 2 / 5; grid-row: 3; }
+  .box-hardware  { grid-column: 2 / 5; grid-row: 5; }
+
+  .conn { position: relative; height: 100%; }
+  .conn-h { grid-row: 1; display: flex; align-items: center; justify-content: center; }
+  .conn-h.c1 { grid-column: 2; }
+  .conn-h.c2 { grid-column: 4; }
+  .conn-v { grid-column: 2 / 5; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .conn-v.v1 { grid-row: 2; }
+  .conn-v.v2 { grid-row: 4; }
+
+  .line { flex: 1; }
+  .conn-h .line { border-top: 2.5px solid var(--net); width: 100%; }
+  .conn-v .line { border-left: 2.5px solid var(--net); height: 100%; }
+  .conn-v.v2 .line { border-left-color: var(--audio); }
+  .conn-label {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.68rem;
+    color: var(--ink-dim);
+    background: var(--paper);
+    padding: 0.1rem 0.4rem;
+    white-space: nowrap;
+    position: absolute;
+  }
+  .conn-h .conn-label { top: -1.15rem; left: 50%; transform: translateX(-50%); }
+  .conn-v .conn-label {
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%) rotate(0deg);
+    background: var(--paper);
+  }
+
+  .chips { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.7rem; }
+  .chip {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.68rem;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    padding: 0.2rem 0.45rem;
+    color: var(--ink-dim);
+    background: var(--code-bg);
+  }
+  .note-badge {
+    margin-top: 0.7rem;
+    font-size: 0.76rem;
+    color: var(--net);
+    border-top: 1px dashed var(--line);
+    padding-top: 0.5rem;
+  }
+  .box-hardware { text-align: center; }
+
+  /* ---- Sequence diagram ---- */
+  .sequence-scroll { overflow-x: auto; margin: 0 -1.5rem; padding: 0 1.5rem; }
+  .sequence {
+    position: relative;
+    min-width: 980px;
+    height: 900px;
+  }
+  .lane-header {
+    position: absolute; top: 0; transform: translateX(-50%);
+    width: 150px; text-align: center;
+  }
+  .lane-header .icon { font-size: 1.3rem; display: block; margin-bottom: 0.2rem; }
+  .lane-header .name { font-weight: 600; font-size: 0.82rem; }
+  .lane-header .role { font-size: 0.68rem; color: var(--ink-dim); font-family: ui-monospace, monospace; }
+  .lifeline {
+    position: absolute; top: 58px; bottom: 10px; width: 1px;
+    background: var(--line);
+  }
+  .seq-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+  .seq-label {
+    position: absolute;
+    transform: translate(-50%, -100%);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    padding-bottom: 2px;
+  }
+  .seq-label.net { color: var(--net); }
+  .seq-label.audio { color: var(--audio); }
+  .seq-label .alt-note {
+    display: block; color: var(--ink-dim); font-style: italic; font-size: 0.66rem;
+  }
+  .activation {
+    position: absolute;
+    width: 8px;
+    background: var(--panel);
+    border: 1.5px solid var(--audio);
+    border-radius: 2px;
+  }
+
+  /* ---- Status / limitations ---- */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+  @media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } }
+  .status-list { list-style: none; padding: 0; margin: 0; }
+  .status-list li {
+    display: flex; gap: 0.6rem; align-items: baseline;
+    padding: 0.5rem 0; border-bottom: 1px solid var(--line);
+    font-size: 0.92rem;
+  }
+  .status-list li:last-child { border-bottom: none; }
+  .pill {
+    font-family: ui-monospace, monospace; font-size: 0.65rem;
+    padding: 0.1rem 0.4rem; border-radius: 2px; flex-shrink: 0;
+    text-transform: uppercase; letter-spacing: 0.03em;
+  }
+  .pill.done { background: var(--net-bg); color: var(--net); }
+  .pill.todo { background: var(--audio-bg); color: var(--audio); }
+
+  code.inline {
+    background: var(--code-bg); border: 1px solid var(--line);
+    border-radius: 3px; padding: 0.05rem 0.35rem; font-size: 0.88em;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: 4px;
+    padding: 0.9rem 1rem; overflow-x: auto; font-size: 0.82rem; line-height: 1.55;
+  }
+
+  footer {
+    margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid var(--line);
+    font-size: 0.8rem; color: var(--ink-dim);
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="title-block">
+    <p class="eyebrow">Note d'architecture — document technique</p>
+    <h1>Client web ACP &amp; Voice Gateway</h1>
+    <p class="subtitle">
+      Comment une conversation texte dans le navigateur devient une conversation
+      vocale locale, sans dupliquer la logique de session de l'agent.
+    </p>
+    <div class="meta-row">
+      <span>genagentui</span>
+      <span>acp/ · server/ · public/ · voice-gateway/</span>
+    </div>
+  </header>
+
+  <section>
+    <h2><span class="num">01</span> En une phrase</h2>
+    <p>
+      Le serveur Node existant (<code class="inline">server/acp-bridge.js</code>) jouait déjà
+      le rôle de <em>Conversation Controller</em> pour le client texte : il spawn l'agent ACP,
+      expose une API REST et diffuse ses réponses en SSE. Le Voice Gateway (local, Python) se
+      branche dessus comme un client HTTP+SSE de plus — il ne parle jamais directement à l'agent.
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="num">02</span> Architecture</h2>
+    <div class="legend">
+      <span class="swatch"><span class="dash net"></span> HTTP / SSE (JSON)</span>
+      <span class="swatch"><span class="dash audio"></span> audio local (aucun réseau)</span>
+    </div>
+    <div class="diagram-scroll">
+      <div class="arch">
+        <div class="box box-browser">
+          <p class="box-title">🖥️ Navigateur</p>
+          <p class="box-sub"><code class="mono">public/app.js</code> — UI, EventSource, fetch</p>
+        </div>
+
+        <div class="conn conn-h c1">
+          <span class="line"></span>
+          <span class="conn-label">fetch + SSE</span>
+        </div>
+
+        <div class="box box-node">
+          <p class="box-title">🖧 Serveur Node</p>
+          <p class="box-sub"><code class="mono">acp-bridge.js</code> — sessions, spawn, SSE broadcast</p>
+        </div>
+
+        <div class="conn conn-h c2">
+          <span class="line"></span>
+          <span class="conn-label">JSON-RPC / stdio</span>
+        </div>
+
+        <div class="box box-agent">
+          <p class="box-title">🤖 Agent ACP</p>
+          <p class="box-sub">kilo · opencode — subprocess</p>
+        </div>
+
+        <div class="conn conn-v v1">
+          <span class="line"></span>
+          <span class="conn-label">spawn/kill · fetch + SSE<br>/api/prompt · /api/voice/*</span>
+        </div>
+
+        <div class="box box-gateway">
+          <p class="box-title">🎙️ Voice Gateway <span class="box-sub">(Python, process à part)</span></p>
+          <p class="box-sub"><code class="mono">controller/web_session.py</code></p>
+          <div class="chips">
+            <span class="chip">Whisper STT</span>
+            <span class="chip">Speakable + Segmenter</span>
+            <span class="chip">TTS: piper · say · navigateur</span>
+          </div>
+          <p class="note-badge">⇢ si voix = « navigateur » : aucune synthèse locale, le texte est
+            relayé via Node et c'est <code class="inline">speechSynthesis()</code> côté navigateur qui parle.</p>
+        </div>
+
+        <div class="conn conn-v v2">
+          <span class="line"></span>
+          <span class="conn-label">sounddevice — flux full-duplex</span>
+        </div>
+
+        <div class="box box-hardware">
+          <p class="box-title">🎧 Micro / Haut-parleurs</p>
+          <p class="box-sub">propriété exclusive du Voice Gateway, une seule instance à la fois</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">03</span> Un tour de parole, en détail</h2>
+    <p>
+      Du <em>push-to-talk</em> à la réponse parlée. Les flèches pointillées marquent une
+      alternative selon la voix choisie dans l'UI (<code class="inline">piper</code> /
+      <code class="inline">say</code> / <code class="inline">browser</code>).
+    </p>
+    <div class="sequence-scroll">
+      <div class="sequence" id="sequence">
+        <!-- lane headers -->
+        <div class="lane-header" style="left:8%">
+          <span class="icon">🗣️</span><span class="name">Utilisateur</span><span class="role">micro + clavier</span>
+        </div>
+        <div class="lane-header" style="left:29%">
+          <span class="icon">🎙️</span><span class="name">Voice Gateway</span><span class="role">python</span>
+        </div>
+        <div class="lane-header" style="left:50%">
+          <span class="icon">🖧</span><span class="name">Serveur Node</span><span class="role">acp-bridge.js</span>
+        </div>
+        <div class="lane-header" style="left:71%">
+          <span class="icon">🤖</span><span class="name">Agent ACP</span><span class="role">subprocess</span>
+        </div>
+        <div class="lane-header" style="left:92%">
+          <span class="icon">🖥️</span><span class="name">Navigateur</span><span class="role">UI</span>
+        </div>
+
+        <div class="lifeline" style="left:8%"></div>
+        <div class="lifeline" style="left:29%"></div>
+        <div class="lifeline" style="left:50%"></div>
+        <div class="lifeline" style="left:71%"></div>
+        <div class="lifeline" style="left:92%"></div>
+
+        <svg class="seq-svg" viewBox="0 0 1000 900" preserveAspectRatio="none">
+          <defs>
+            <marker id="arrow-net" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+              <path d="M0,0 L6,3 L0,6 Z" fill="var(--net)" />
+            </marker>
+            <marker id="arrow-audio" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+              <path d="M0,0 L6,3 L0,6 Z" fill="var(--audio)" />
+            </marker>
+          </defs>
+
+          <!-- 1: PTT down -->
+          <line x1="80" y1="98" x2="290" y2="98" stroke="var(--audio)" stroke-width="2" marker-end="url(#arrow-audio)" />
+          <!-- 2: PTT up -->
+          <line x1="80" y1="150" x2="290" y2="150" stroke="var(--audio)" stroke-width="2" marker-end="url(#arrow-audio)" />
+          <!-- 3: Node→Node transcript post -->
+          <line x1="290" y1="238" x2="500" y2="238" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
+          <!-- 4: Node→Browser transcript relay -->
+          <line x1="500" y1="272" x2="920" y2="272" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
+          <!-- 5: VG→Node prompt -->
+          <line x1="290" y1="322" x2="500" y2="322" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
+          <!-- 6: Node→Agent prompt -->
+          <line x1="500" y1="358" x2="710" y2="358" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
+          <!-- 7: Agent→Node chunks -->
+          <line x1="710" y1="402" x2="500" y2="402" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
+          <!-- 8: Node→Browser live render -->
+          <line x1="500" y1="436" x2="920" y2="436" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
+          <!-- 9: Node→VG same stream -->
+          <line x1="500" y1="468" x2="290" y2="468" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
+          <!-- 10: Agent→Node result -->
+          <line x1="710" y1="512" x2="500" y2="512" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
+          <!-- 11: Node→VG status completed -->
+          <line x1="500" y1="546" x2="290" y2="546" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
+          <!-- 12: VG self synth+play (piper/say) -->
+          <path d="M 290,616 C 360,616 360,650 292,650" fill="none" stroke="var(--audio)" stroke-width="2" marker-end="url(#arrow-audio)" />
+          <!-- 12b alt: VG->Node->Browser speechSynthesis -->
+          <line x1="290" y1="672" x2="500" y2="672" stroke="var(--net)" stroke-width="2" stroke-dasharray="5,4" marker-end="url(#arrow-net)" />
+          <line x1="500" y1="696" x2="920" y2="696" stroke="var(--net)" stroke-width="2" stroke-dasharray="5,4" marker-end="url(#arrow-net)" />
+          <!-- 13: VG->Node playback-end -->
+          <line x1="290" y1="748" x2="500" y2="748" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
+          <!-- 14: Node->Browser status update -->
+          <line x1="500" y1="782" x2="920" y2="782" stroke="var(--net)" stroke-width="2" marker-end="url(#arrow-net)" />
+        </svg>
+
+        <!-- activations (self-processing on the Voice Gateway lifeline) -->
+        <div class="activation" style="left:calc(29% - 4px); top:170px; height:50px;"></div>
+        <div class="activation" style="left:calc(29% - 4px); top:600px; height:60px;"></div>
+
+        <div class="seq-label audio" style="left:18.5%; top:98px;">PTT down — espace maintenue</div>
+        <div class="seq-label audio" style="left:18.5%; top:150px;">PTT up</div>
+        <div class="seq-label" style="left:29%; top:196px; color:var(--audio); transform:translate(8px,-100%);">Whisper — STT local</div>
+        <div class="seq-label net" style="left:39.5%; top:238px;">POST /api/voice/event (transcript)</div>
+        <div class="seq-label net" style="left:71%; top:272px;">SSE voice_event → bulle utilisateur</div>
+        <div class="seq-label net" style="left:39.5%; top:322px;">POST /api/prompt { text }</div>
+        <div class="seq-label net" style="left:60.5%; top:358px;">session/prompt (JSON-RPC)</div>
+        <div class="seq-label net" style="left:60.5%; top:402px;">session/update × n (agent_message_chunk)</div>
+        <div class="seq-label net" style="left:71%; top:436px;">SSE session_update → texte affiché en direct</div>
+        <div class="seq-label net" style="left:39.5%; top:468px;">SSE session_update → Segmenter + Speakable</div>
+        <div class="seq-label net" style="left:60.5%; top:512px;">result { stopReason: end_turn }</div>
+        <div class="seq-label net" style="left:39.5%; top:546px;">SSE status: completed</div>
+        <div class="seq-label" style="left:34%; top:650px; color:var(--audio);">TTS Piper / say + lecture locale
+          <span class="alt-note">si voix = piper ou say</span>
+        </div>
+        <div class="seq-label net" style="left:39.5%; top:672px;">texte relayé
+          <span class="alt-note">si voix = navigateur</span>
+        </div>
+        <div class="seq-label net" style="left:71%; top:696px;">speechSynthesis.speak()</div>
+        <div class="seq-label net" style="left:39.5%; top:748px;">POST /api/voice/event (playback-end)</div>
+        <div class="seq-label net" style="left:71%; top:782px;">SSE → statut mis à jour</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">04</span> Ce qui est fait</h2>
+    <div class="grid-2">
+      <div>
+        <h3 style="font-size:1rem;">Voice Gateway (local)</h3>
+        <ul class="status-list">
+          <li><span class="pill done">fait</span> AudioIO full-duplex + PTT clavier → WAV</li>
+          <li><span class="pill done">fait</span> Whisper local + filtre anti-hallucination</li>
+          <li><span class="pill done">fait</span> Text Pipeline (Speakable + Segmenter) + Player</li>
+          <li><span class="pill done">fait</span> TTS : Piper, macOS <code class="inline">say</code>, relais navigateur</li>
+          <li><span class="pill done">fait</span> Soak test 50 tours (0 fuite, 0 état incohérent)</li>
+        </ul>
+      </div>
+      <div>
+        <h3 style="font-size:1rem;">Intégration web</h3>
+        <ul class="status-list">
+          <li><span class="pill done">fait</span> Bouton « Mode vocal » + sélecteur de voix dans l'UI</li>
+          <li><span class="pill done">fait</span> Pont HTTP+SSE (aucune dépendance ACP dupliquée)</li>
+          <li><span class="pill done">fait</span> Instance unique forcée (micro/HP = ressource physique)</li>
+          <li><span class="pill todo">à faire</span> Annonce vocale sur demande de permission (§12.3)</li>
+          <li><span class="pill todo">à faire</span> VAD / barge-in / AEC (étapes 5+ de la spec)</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">05</span> Décisions qui comptent</h2>
+    <ul class="clean">
+      <li><strong>Pas de second client ACP.</strong> Le Voice Gateway parle HTTP+SSE au serveur
+        Node existant plutôt que de spawn son propre agent — zéro duplication de la logique de
+        session, zéro nouvelle dépendance réseau côté Node.</li>
+      <li><strong>Une seule instance vocale, globale.</strong> Le micro et les haut-parleurs sont
+        une ressource physique unique de la machine : démarrer une session vocale tue
+        automatiquement la précédente, quelle que soit sa connexion ACP d'origine.</li>
+      <li><strong>Un seul tour actif à la fois.</strong> Pas de barge-in dans cette version — un
+        nouveau PTT pendant qu'un tour est en cours est ignoré plutôt que d'interrompre l'agent.</li>
+      <li><strong>Le rendu vocal est interchangeable, pas la capture.</strong> Piper, <code class="inline">say</code>
+        et navigateur partagent le même pipeline PTT → Whisper → agent ; seule la dernière étape
+        (parler la réponse) change d'implémentation.</li>
+    </ul>
+  </section>
+
+  <footer>
+    Voir aussi <a href="../VOICEGTWSPEC.md">VOICEGTWSPEC.md</a> (spécification complète du Voice Gateway),
+    <a href="../voice-gateway/README.md">voice-gateway/README.md</a> (installation, modèles) et
+    <a href="../voice-gateway/TODO.md">voice-gateway/TODO.md</a> (suivi).
+  </footer>
+
+</div>
