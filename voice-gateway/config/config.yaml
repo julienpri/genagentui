@@ -34,9 +34,12 @@ text:
     max_sentence_chars: 220
 
 tts:
-  provider: piper
+  provider: piper          # piper | say | browser (voir controller/web_session.py --tts-provider)
   model: models/piper/fr/fr_FR/siwis/medium/fr_FR-siwis-medium.onnx
   speed: 1.0
+  say:
+    voice: Thomas           # voix macOS FR ; null = voix système par défaut
+    sample_rate: 22050
 
 fake_agent:
   word_delay_ms: 40

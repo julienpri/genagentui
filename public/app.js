@@ -106,6 +106,7 @@ const state = {
   permissionQueue: [],
   currentPermission: null,
   voiceState: "stopped",
+  voiceTtsProvider: "piper",
 };
 
 /* ---------------------------------------------------------------------- */
@@ -225,9 +226,11 @@ const agent = {
 
   async startVoice() {
     if (!state.sessionId) return;
+    const ttsProvider = document.getElementById("voice-tts-select").value;
+    state.voiceTtsProvider = ttsProvider;
     await fetchJSON("/api/voice/start", {
       method: "POST",
-      body: JSON.stringify({ connectionId: state.connectionId, sessionId: state.sessionId }),
+      body: JSON.stringify({ connectionId: state.connectionId, sessionId: state.sessionId, ttsProvider }),
     });
   },
 
@@ -382,6 +385,9 @@ function renderVoiceEvent(event, data) {
   if (event === "transcript" && data.text) {
     appendUserMessage(data.text);
   }
+  if (event === "synthesis-start" && data.text && state.voiceTtsProvider === "browser" && "speechSynthesis" in window) {
+    window.speechSynthesis.speak(new SpeechSynthesisUtterance(data.text));
+  }
   const el = document.getElementById("voice-status");
   if (!el) return;
   const fmt = VOICE_EVENT_LABELS[event];
@@ -392,12 +398,14 @@ function renderVoiceEvent(event, data) {
 
 function renderVoiceStatus(data) {
   const btn = document.getElementById("voice-toggle-btn");
+  const select = document.getElementById("voice-tts-select");
   const el = document.getElementById("voice-status");
   if (!btn) return;
   if (data.state === "running") {
     btn.textContent = "🎤 Mode vocal (actif)";
     btn.classList.add("active");
     btn.disabled = false;
+    if (select) select.disabled = true;
     if (el) {
       el.hidden = false;
       el.textContent = "🎤 en écoute (maintenir espace pour parler)";
@@ -405,16 +413,19 @@ function renderVoiceStatus(data) {
   } else if (data.state === "starting") {
     btn.textContent = "🎤 Démarrage…";
     btn.disabled = true;
+    if (select) select.disabled = true;
   } else if (data.state === "error") {
     btn.textContent = "🎤 Mode vocal";
     btn.classList.remove("active");
     btn.disabled = !state.sessionId;
+    if (select) select.disabled = !state.sessionId;
     toast(data.message || "Erreur du Voice Gateway", "error");
     if (el) el.hidden = true;
   } else {
     btn.textContent = "🎤 Mode vocal";
     btn.classList.remove("active");
     btn.disabled = !state.sessionId;
+    if (select) select.disabled = !state.sessionId;
     if (el) el.hidden = true;
   }
 }
@@ -863,6 +874,7 @@ function setComposerEnabled(enabled) {
   document.getElementById("prompt-input").disabled = !enabled;
   document.getElementById("send-btn").disabled = !enabled;
   document.getElementById("voice-toggle-btn").disabled = !enabled;
+  document.getElementById("voice-tts-select").disabled = !enabled;
   setPromptState("idle");
 }
 

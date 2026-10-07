@@ -61,6 +61,11 @@
       <div id="command-palette" class="command-palette" hidden></div>
       <textarea id="prompt-input" placeholder="Message… (/ pour les commandes)" rows="2" disabled></textarea>
       <div class="composer-actions">
+        <select id="voice-tts-select" aria-label="Voix" disabled>
+          <option value="piper">Voix Piper (Voice Gateway)</option>
+          <option value="say">Voix macOS (say)</option>
+          <option value="browser">Voix navigateur (Chrome)</option>
+        </select>
         <button id="voice-toggle-btn" type="button" disabled>🎤 Mode vocal</button>
         <span id="voice-status" class="voice-status" hidden></span>
         <button id="stop-btn" type="button" class="danger" disabled>Stop</button>

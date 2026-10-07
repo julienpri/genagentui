@@ -116,6 +116,22 @@ nouvelle session vocale tue automatiquement la précédente.
 Un seul tour actif à la fois (§9) : un nouveau PTT pendant qu'un tour est en
 cours est ignoré — pas de barge-in dans cette v0.
 
+### Choix du rendu vocal (TTS)
+
+Un `<select>` dans l'UI (à côté de "🎤 Mode vocal") choisit comment la
+réponse de l'agent est rendue — la capture (PTT + Whisper) ne change pas,
+seule la synthèse change :
+
+| Valeur | Implémentation | Où ça tourne |
+|---|---|---|
+| `piper` (défaut) | `voice_gateway/tts/piper.py` | localement, dans le process Python |
+| `say` | `voice_gateway/tts/say.py` (commande macOS `say`, PCM direct via `--data-format=LEI16@<rate>`, lu avec le module stdlib `wave`) | localement, dans le process Python |
+| `browser` | aucune synthèse côté Python — le texte est relayé via `voice_event`/`synthesis-start` et c'est `speechSynthesis.speak()` côté navigateur qui parle | dans l'onglet |
+
+Le choix est figé pour la durée d'une session vocale (passé en argument au
+spawn du process, `--tts-provider`) ; le `<select>` se désactive pendant
+qu'une session est active.
+
 Testé bout-en-bout avec un agent ACP réel (opencode) : prompt -> réponse
 réelle streamée -> synthèse -> lecture, sans crash, arrêt propre. Le round-trip
 micro réel (PTT + voix humaine côté navigateur) a été validé manuellement.
@@ -130,7 +146,7 @@ voice_gateway/
 ├── audio/player.py                 # file de lecture (§6.9)
 ├── stt/faster_whisper.py, filter.py # STT + filtre anti-hallucination (§6.5, §6.6)
 ├── text/segmenter.py, speakable.py, pipeline.py  # Text Pipeline (§6.7) + speak_sentence partagé
-└── tts/piper.py                    # synthèse streaming (§6.8)
+└── tts/piper.py, say.py            # synthèse streaming (§6.8) — Piper et macOS `say`
 
 controller/
 ├── fake_agent.py                   # Fake Agent de test (§4.1), utilisé par main_voice.py

@@ -139,7 +139,7 @@ const ROUTES = {
     bridge.setConfigOption(body.connectionId, body.sessionId, body.id, body.value, body.type),
 
   "POST /api/voice/start": async (body) =>
-    bridge.startVoice(body.connectionId, body.sessionId, `http://127.0.0.1:${PORT}`),
+    bridge.startVoice(body.connectionId, body.sessionId, `http://127.0.0.1:${PORT}`, body.ttsProvider),
 
   "POST /api/voice/stop": async (body) => bridge.stopVoice(body.connectionId),
 

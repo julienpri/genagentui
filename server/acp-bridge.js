@@ -215,9 +215,14 @@ function disconnect(connectionId) {
 // d'écouter le raccourci PTT global et de parler en parallèle du nouveau.
 let activeVoiceConnectionId = null;
 
-function startVoice(connectionId, sessionId, apiBase) {
+const VOICE_TTS_PROVIDERS = new Set(["piper", "say", "browser"]);
+
+function startVoice(connectionId, sessionId, apiBase, ttsProvider) {
   const connection = getConnection(connectionId);
   if (!sessionId) throw new Error("Missing sessionId");
+  if (ttsProvider && !VOICE_TTS_PROVIDERS.has(ttsProvider)) {
+    throw new Error(`ttsProvider inconnu: ${ttsProvider}`);
+  }
 
   if (activeVoiceConnectionId && activeVoiceConnectionId !== connectionId) {
     stopVoice(activeVoiceConnectionId);
@@ -230,11 +235,9 @@ function startVoice(connectionId, sessionId, apiBase) {
   }
 
   const scriptPath = path.join(VOICE_GATEWAY_DIR, "controller", "web_session.py");
-  const child = spawn(
-    VOICE_GATEWAY_PYTHON,
-    [scriptPath, "--api-base", apiBase, "--connection-id", connectionId, "--session-id", sessionId],
-    { cwd: VOICE_GATEWAY_DIR, stdio: ["ignore", "pipe", "pipe"] }
-  );
+  const scriptArgs = [scriptPath, "--api-base", apiBase, "--connection-id", connectionId, "--session-id", sessionId];
+  if (ttsProvider) scriptArgs.push("--tts-provider", ttsProvider);
+  const child = spawn(VOICE_GATEWAY_PYTHON, scriptArgs, { cwd: VOICE_GATEWAY_DIR, stdio: ["ignore", "pipe", "pipe"] });
 
   connection.voiceProcess = child;
   connection.voiceState = "starting";

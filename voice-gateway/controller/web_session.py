@@ -40,6 +40,7 @@ from voice_gateway.text.pipeline import speak_sentence  # noqa: E402
 from voice_gateway.text.segmenter import SentenceSegmenter  # noqa: E402
 from voice_gateway.text.speakable import SpeakableFilter  # noqa: E402
 from voice_gateway.tts.piper import PiperTTS  # noqa: E402
+from voice_gateway.tts.say import SayTTS  # noqa: E402
 
 
 def load_config() -> dict:
@@ -76,9 +77,11 @@ async def main() -> int:
     parser.add_argument("--api-base", required=True)
     parser.add_argument("--connection-id", required=True)
     parser.add_argument("--session-id", required=True)
+    parser.add_argument("--tts-provider", choices=["piper", "say", "browser"], default=None)
     args = parser.parse_args()
 
     cfg = load_config()
+    tts_provider = args.tts_provider or cfg["tts"]["provider"]
     client = ACPHttpClient(args.api_base, args.connection_id, args.session_id)
 
     audio = AudioIO(frame_ms=cfg["audio"]["frame_ms"])
@@ -99,10 +102,17 @@ async def main() -> int:
         blacklist_file=ROOT / stt_cfg["filter"]["blacklist_file"],
     )
 
-    tts_cfg = dict(cfg["tts"])
-    tts_cfg["model"] = str(ROOT / tts_cfg["model"])
-    tts = PiperTTS()
-    await tts.initialize(tts_cfg)
+    tts = None
+    if tts_provider == "piper":
+        tts_cfg = dict(cfg["tts"])
+        tts_cfg["model"] = str(ROOT / tts_cfg["model"])
+        tts = PiperTTS()
+        await tts.initialize(tts_cfg)
+    elif tts_provider == "say":
+        tts = SayTTS()
+        await tts.initialize(dict(cfg["tts"]["say"]))
+    # "browser" : pas de synthèse locale, le texte est juste relayé au
+    # navigateur (voir handle_sentence) qui parle via speechSynthesis.
 
     speakable = SpeakableFilter(
         code_blocks=cfg["text"]["speakable"]["code_blocks"],
@@ -121,7 +131,7 @@ async def main() -> int:
         if tail:
             if turn.t_first_sentence is None:
                 turn.t_first_sentence = time.monotonic()
-            await speak_sentence(tail, speakable, tts, player, audio.fmt.sample_rate, turn.timers)
+            await handle_sentence(turn, tail)
 
         while not player.is_idle():
             await asyncio.sleep(0.02)
@@ -138,6 +148,16 @@ async def main() -> int:
         turn.active = False
 
     async def handle_sentence(turn: Turn, raw_sentence: str) -> None:
+        if tts_provider == "browser":
+            # Pas de synthèse locale : le navigateur reçoit le texte et
+            # parle lui-même via speechSynthesis (cf. public/app.js).
+            text = speakable.process(raw_sentence)
+            if not text:
+                return
+            notify("synthesis-start", {"text": text})
+            turn.timers.setdefault("playback_start_t", time.monotonic())
+            return
+
         notify("synthesis-start", {"text": raw_sentence})
         await speak_sentence(raw_sentence, speakable, tts, player, audio.fmt.sample_rate, turn.timers)
         notify("synthesis-end", {"text": raw_sentence})
@@ -242,7 +262,8 @@ async def main() -> int:
     ptt_listener.stop()
     audio.stop()
     await stt.shutdown()
-    await tts.shutdown()
+    if tts is not None:
+        await tts.shutdown()
     notify("state", {"from": "LISTENING", "to": "IDLE"})
     return 0
 
